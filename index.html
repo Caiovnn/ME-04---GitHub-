@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Inteligência Logística</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --error-color: #e74c3c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .search-box {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .search-box input {
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            width: 250px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+        }
+
+        .search-box button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .search-box button:hover {
+            background-color: #2980b9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-top: 5px solid var(--primary-color);
+        }
+
+        .card h3 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            border-bottom: 2px solid #f4f6f9;
+            padding-bottom: 8px;
+        }
+
+        .card p {
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .card span {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .error-message {
+            background-color: #fde8e8;
+            color: var(--error-color);
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 5px solid var(--error-color);
+            margin-bottom: 20px;
+            display: none;
+            font-weight: bold;
+        }
+
+        ul {
+            list-style-type: none;
+        }
+
+        li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        li:last-child {
+            border: none;
+        }
+
+        .loading {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--secondary-color);
+            display: none;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Dashboard de Viabilidade Logística</h1>
+            <p>Análise multidados assíncrona para transporte de cargas</p>
+        </header>
+
+        <div class="search-box">
+            <input type="text" id="cepInput" placeholder="Digite o CEP (Ex: 01001000)" maxlength="8">
+            <button id="btnAnalisar">Analisar Região</button>
+        </div>
+
+        <div id="loading" class="loading">Processando dados logísticos, aguarde...</div>
+        <div id="errorBox" class="error-message"></div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h3>📍 Bloco Logístico (Endereço)</h3>
+                <p><span>Logradouro:</span> <span id="logradouro">-</span></p>
+                <p><span>Bairro:</span> <span id="bairro">-</span></p>
+                <p><span>Cidade:</span> <span id="cidade">-</span></p>
+                <p><span>Estado:</span> <span id="estado">-</span></p>
+            </div>
+
+            <div class="card">
+                <h3>🌤️ Bloco Climático (Previsão)</h3>
+                <p><span>Temperatura Atual:</span> <span id="temperatura">-</span></p>
+                <p><span>Velocidade do Vento:</span> <span id="vento">-</span></p>
+            </div>
+
+            <div class="card">
+                <h3>📅 Restrições de Tráfego (Feriados)</h3>
+                <ul id="listaFeriados">
+                    <li>Nenhum dado carregado</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('btnAnalisar').addEventListener('click', analisarRegiao);
+
+        async function analisarRegiao() {
+            const cep = document.getElementById('cepInput').value.replace(/\D/g, '');
+            const errorBox = document.getElementById('errorBox');
+            const loading = document.getElementById('loading');
+
+            // Reset de tela e tratamento inicial
+            errorBox.style.display = 'none';
+            if (cep.length !== 8) {
+                exibirErro('Por favor, digite um CEP válido com 8 dígitos.');
+                return;
+            }
+
+            loading.style.display = 'block';
+
+            try {
+                // 1. API ViaCEP - Busca de Endereço
+                const viaCepResponse = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                if (!viaCepResponse.ok) throw new Error('Falha ao conectar com o serviço de CEP.');
+                
+                const dadosCep = await viaCepResponse.json();
+                
+                if (dadosCep.erro) {
+                    throw new Error('CEP não encontrado na base de dados.');
+                }
+
+                // Renderiza Bloco Logístico
+                document.getElementById('logradouro').innerText = dadosCep.logradouro || 'N/A';
+                document.getElementById('bairro').innerText = dadosCep.bairro || 'N/A';
+                document.getElementById('cidade').innerText = dadosCep.localidade;
+                document.getElementById('estado').innerText = dadosCep.uf;
+
+                // 2. Dependência: Buscar coordenadas baseadas na cidade retornada
+                const cidadeFormatada = encodeURIComponent(dadosCep.localidade);
+                const geocodingResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${cidadeFormatada}&count=1`);
+                if (!geocodingResponse.ok) throw new Error('Falha ao obter coordenadas da cidade.');
+                
+                const dadosGeocoding = await geocodingResponse.json();
+                
+                if (!dadosGeocoding.results || dadosGeocoding.results.length === 0) {
+                    throw new Error('Não foi possível localizar as coordenadas climáticas para esta cidade.');
+                }
+
+                const { latitude, longitude } = dadosGeocoding.results[0];
+
+                // Busca o Clima Atual usando as coordenadas
+                const climaResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+                if (!climaResponse.ok) throw new Error('Falha ao obter dados climáticos.');
+                
+                const dadosClima = await climaResponse.json();
+
+                // Renderiza Bloco Climático
+                document.getElementById('temperatura').innerText = `${dadosClima.current_weather.temperature}°C`;
+                document.getElementById('vento').innerText = `${dadosClima.current_weather.windspeed} km/h`;
+
+                // 3. API BrasilAPI - Calendário Nacional (Ano Vigente)
+                const anoAtual = new Date().getFullYear();
+                const feriadosResponse = await fetch(`https://brasilapi.com.br/api/feriados/v1/${anoAtual}`);
+                if (!feriadosResponse.ok) throw new Error('Falha ao carregar o calendário nacional.');
+
+                const dadosFeriados = await feriadosResponse.json();
+
+                // Renderiza Bloco de Calendário (Garante os 3 primeiros feriados)
+                const listaFeriadosUI = document.getElementById('listaFeriados');
+                listaFeriadosUI.innerHTML = ''; // Limpa a lista antiga
+
+                const primeirosFeriados = dadosFeriados.slice(0, 3);
+                primeirosFeriados.forEach(feriado => {
+                    // Formata a data de AAAA-MM-DD para DD/MM/AAAA
+                    const [ano, mes, dia] = feriado.date.split('-');
+                    const dataFormatada = `${dia}/${mes}/${ano}`;
+                    
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${dataFormatada}</strong> - ${feriado.name}`;
+                    listaFeriadosUI.appendChild(li);
+                });
+
+            } catch (erro) {
+                exibirErro(erro.message);
+                limparCampos();
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function exibirErro(mensagem) {
+            const errorBox = document.getElementById('errorBox');
+            errorBox.innerText = `⚠️ Erro: ${mensagem}`;
+            errorBox.style.display = 'block';
+        }
+
+        function limparCampos() {
+            document.getElementById('logradouro').innerText = '-';
+            document.getElementById('bairro').innerText = '-';
+            document.getElementById('cidade').innerText = '-';
+            document.getElementById('estado').innerText = '-';
+            document.getElementById('temperatura').innerText = '-';
+            document.getElementById('vento').innerText = '-';
+            document.getElementById('listaFeriados').innerHTML = '<li>Nenhum dado carregado</li>';
+        }
+    </script>
+</body>
+</html>
